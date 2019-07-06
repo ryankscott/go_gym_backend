@@ -1,0 +1,23 @@
+# -*- restclient -*-
+
+#
+# Get all classes
+GET http://localhost:3000/classes
+#
+# Restrict it to a single club
+GET http://localhost:3000/classes?club=09
+#
+# Restrict it to a single class
+GET http://localhost:3000/classes?name=62
+#
+# Combine it 
+GET http://localhost:3000/classes?name=62&club=09
+#
+# Get by date
+GET http://localhost:3000/classes?date=2019-07-02
+#
+# Get by hour
+GET http://localhost:3000/classes?hour=09
+#
+# Get by hour
+GET http://localhost:3000/classes?hour=09
