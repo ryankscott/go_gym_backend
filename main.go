@@ -198,14 +198,59 @@ func ClassesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ClassTypesHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Gorilla!\n"))
+	// Ensure we're returning JSON
+	w.Header().Set("Content-Type", "application/json")
+	classTypes, err := queryClassTypes(db)
+	if err != nil {
+		fmt.Printf("Failed to get classTypes - %s \n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Failed to return classTypes"))
+		return
+	}
+	jClassTypes, err := json.Marshal(classTypes)
+	if err != nil {
+		fmt.Printf("Failed to marshal classTypes to JSON - %s \n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Failed to return classTypes"))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(jClassTypes))
 }
 
 func AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Gorilla!\n"))
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Fatal("Error reading body. ", err)
+	}
+	var event AnalyticsEvent
+	err = json.Unmarshal(body, &event)
+	if err != nil {
+		fmt.Printf("Failed to unmarshal JSON to analytics event - %s \n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Failed to save analytics event"))
+		return
+	}
+	// Create a UUID and timestamp
+	event.ID = uuid.New().String()
+	event.CreatedAt = time.Now()
+
+	// Save it
+	err = db.Save(&event)
+	if err != nil {
+		fmt.Printf("Failed to save analytics event - %s \n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Failed to save analytics event"))
+		log.Printf("Failed to save analytics event - %s\n", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	// Check if the UI is up
+	// Check if the DB is responding
+	//
 	w.Write([]byte("Gorilla!\n"))
 }
 
@@ -395,6 +440,16 @@ func queryClasses(db *storm.DB, query Query) ([]Class, error) {
 	// 	fmt.Println("~~~~~")
 	// }
 	return classes, nil
+}
+
+func queryClassTypes(db *storm.DB) ([]ClassType, error) {
+	var allClassTypes []ClassType
+	err := db.All(&allClassTypes)
+	if err != nil {
+		return nil, err
+	}
+	return allClassTypes, nil
+
 }
 
 func main() {
