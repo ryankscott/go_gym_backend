@@ -235,7 +235,6 @@ func getClasses() ([]Class, []ClassType, error) {
 	var classes []Class
 	err = json.Unmarshal([]byte(cs.String()), &classes)
 	if err != nil {
-		// TODO stuff
 		log.Printf("Failed to unmarshal classes %s\n", err)
 		return nil, nil, err
 	}
@@ -354,9 +353,14 @@ func queryClasses(db *storm.DB, query Query) ([]Class, error) {
 	// Extract the dates
 	var dateQueries []q.Matcher
 	log.Printf("Querying for classes using %s as date parameters\n", query.date)
+	location, err := time.LoadLocation("Pacific/Auckland")
+	if err != nil {
+		log.Printf("Failed to load location - %s\n", err)
+		return nil, err
+	}
 	for _, v := range query.date {
-		endOfDay := time.Date(v.Year(), v.Month(), v.Day(), 23, 59, 59, 0, v.Location())
-		startOfDay := time.Date(v.Year(), v.Month(), v.Day(), 0, 0, 0, 0, v.Location())
+		endOfDay := time.Date(v.Year(), v.Month(), v.Day(), 23, 59, 59, 0, location)
+		startOfDay := time.Date(v.Year(), v.Month(), v.Day(), 0, 0, 0, 0, location)
 		dateQueries = append(dateQueries, q.And(q.Gt("StartDateTime", startOfDay), q.Lt("StartDateTime", endOfDay)))
 	}
 
@@ -369,7 +373,6 @@ func queryClasses(db *storm.DB, query Query) ([]Class, error) {
 
 	// Combine the matchers
 	matcher := createMatcher(nameQueries, clubQueries, dateQueries, hourQueries)
-	var err error
 	// If we don't have query parameters
 	if matcher == nil {
 		log.Printf("We have no matchers so returning all classes\n")
