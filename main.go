@@ -117,6 +117,9 @@ func ClassesHandler(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 	var q = Query{}
 
+	// Ensure we're returning JSON
+	w.Header().Set("Content-Type", "application/json")
+
 	// Parse names
 	n := params.Get("name")
 	if n != "" {
