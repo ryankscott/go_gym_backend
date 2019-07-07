@@ -25,6 +25,15 @@ var allClubs = map[string]Club{
 }
 var db *storm.DB
 
+type AnalyticsEvent struct {
+	ID        string
+	User      string      `json:"user"`
+	Session   string      `json:"session"`
+	Data      interface{} `json:"data"`
+	Action    string      `json:"action"`
+	CreatedAt time.Time   `json:"-"`
+}
+
 type Club struct {
 	ClubCode string `json:"ClubCode" storm:"index"`
 	Name     string `json:"Name"`
