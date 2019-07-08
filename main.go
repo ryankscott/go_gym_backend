@@ -340,52 +340,19 @@ func saveClassTypes(db *storm.DB, classTypes []ClassType) error {
 
 }
 
-// TODO: This logic is a bit silly
 func createMatcher(m ...[]q.Matcher) q.Matcher {
-	// Create a bitmap of the matchers to see if they're enabled
-	queries := 0
-	for k, v := range m {
+	var queries []q.Matcher
+	for _, v := range m {
+		// If there's contents of the matcher then save it
 		if len(v) > 0 {
-			queries |= (1 << uint(k))
+			queries = append(queries, q.Or(v...))
 		}
 	}
-	// Based on the bitmap, add them to the matcher list
-	switch queries {
-	case 0:
+	if len(queries) == 0 {
 		return nil
-	case 1: // (0001)
-		return q.And(q.Or(m[0]...))
-	case 2: //(0010)
-		return q.And(q.Or(m[1]...))
-	case 3: //(0011)
-		return q.And(q.Or(m[1]...), q.Or(m[0]...))
-	case 4: //(0100)
-		return q.And(q.Or(m[2]...))
-	case 5: //(0101)
-		return q.And(q.Or(m[2]...), q.Or(m[0]...))
-	case 6: //(0110)
-		return q.And(q.Or(m[2]...), q.Or(m[1]...))
-	case 7: //(0111)
-		return q.And(q.Or(m[2]...), q.Or(m[1]...), q.Or(m[0]...))
-	case 8: //(1000)
-		return q.And(q.Or(m[3]...))
-	case 9: //(1001)
-		return q.And(q.Or(m[3]...), q.Or(m[0]...))
-	case 10: //(1010)
-		return q.And(q.Or(m[3]...), q.Or(m[1]...))
-	case 11: //(1011)
-		return q.And(q.Or(m[3]...), q.Or(m[1]...), q.Or(m[0]...))
-	case 12: //(1100)
-		return q.And(q.Or(m[3]...), q.Or(m[2]...))
-	case 13: //(1101)
-		return q.And(q.Or(m[3]...), q.Or(m[2]...), q.Or(m[0]...))
-	case 14: //(1110)
-		return q.And(q.Or(m[3]...), q.Or(m[2]...), q.Or(m[1]...))
-	case 15: //(1111)
-		return q.And(q.Or(m[3]...), q.Or(m[2]...), q.Or(m[1]...), q.Or(m[0]...))
 	}
-	return nil
-
+	allQueries := q.And(queries...)
+	return allQueries
 }
 
 func queryClasses(db *storm.DB, query Query) ([]Class, error) {
