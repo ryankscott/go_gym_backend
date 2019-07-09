@@ -115,8 +115,7 @@ func (cd JSONClass) Class() Class {
 }
 
 type ClassType struct {
-	ID    string
-	Key   string `json:"Key"`
+	Key   string `storm:"id" json:"Key"`
 	Value string `json:"Value"`
 }
 
@@ -327,7 +326,6 @@ func saveClassTypes(db *storm.DB, classTypes []ClassType) error {
 	log.Printf("Saving %d classtypes\n", len(classTypes))
 	t1 := time.Now()
 	for _, c := range classTypes {
-		c.ID = uuid.New().String() // This is for storm
 		err := db.Save(&c)
 		if err != nil {
 			log.Printf("Failed to save class types - %s\n", err)
