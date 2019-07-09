@@ -437,51 +437,55 @@ func main() {
 		log.Fatalf("Failed to open database with error  - %s \n", err)
 	}
 
-	// // Drop all old data
-	// err = db.Drop("Class")
-	// log.Printf("Dropping all old class data")
-	// if err != nil {
-	// 	log.Printf("Failed to drop data - %s \n", err)
-	// }
+	// Drop all old data
+	err = db.Drop("Class")
+	log.Printf("Dropping all old class data")
+	if err != nil {
+		log.Printf("Failed to drop class data - %s \n", err)
+	}
+	err = db.Drop("ClassType")
+	log.Printf("Dropping all old classtypes data")
+	if err != nil {
+		log.Printf("Failed to drop classtypes data - %s \n", err)
+	}
 
-	// classes, classTypes, err := getClasses()
-	// if err != nil {
-	// 	log.Fatalf("Failed to get classes and classTypes with error - %s\n", err)
-	// }
+	classes, classTypes, err := getClasses()
+	if err != nil {
+		log.Fatalf("Failed to get classes and classTypes with error - %s\n", err)
+	}
 
-	// err = saveClasses(db, classes)
-	// if err != nil {
-	// 	log.Fatalf("Failed to save classes with error - %s\n", err)
+	err = saveClasses(db, classes)
+	if err != nil {
+		log.Fatalf("Failed to save classes with error - %s\n", err)
 
-	// }
+	}
 
-	// err = saveClassTypes(db, classTypes)
-	// if err != nil {
-	// 	log.Fatalf("Failed to save class types with error - %s\n", err)
+	err = saveClassTypes(db, classTypes)
+	if err != nil {
+		log.Fatalf("Failed to save class types with error - %s\n", err)
 
-	// }
+	}
 
-	//Periodically get new classes
-	// //TODO: fix me
-	// ticker := time.NewTicker(6 * time.Hour)
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case <-ticker.C:
-	// 			err = saveClasses(db, classes)
-	// 			if err != nil {
-	// 				log.Fatalf("Failed to save classes with error - %s\n", err)
+	// Periodically get new classes
+	ticker := time.NewTicker(6 * time.Hour)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				err = saveClasses(db, classes)
+				if err != nil {
+					log.Fatalf("Failed to save classes with error - %s\n", err)
 
-	// 			}
+				}
 
-	// 			err = saveClassTypes(db, classTypes)
-	// 			if err != nil {
-	// 				log.Fatalf("Failed to save class types with error - %s\n", err)
+				err = saveClassTypes(db, classTypes)
+				if err != nil {
+					log.Fatalf("Failed to save class types with error - %s\n", err)
 
-	// 			}
-	// 		}
-	// 	}
-	// }()
+				}
+			}
+		}
+	}()
 
 	defer db.Close()
 
