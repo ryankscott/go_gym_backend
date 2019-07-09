@@ -403,21 +403,19 @@ func queryClasses(db *storm.DB, query Query) ([]Class, error) {
 		err = db.All(&classes)
 
 	} else {
-		err = db.Select(matcher).Find(&classes)
+		err = db.Select(matcher).OrderBy("StartDateTime").Find(&classes)
 	}
 	if err != nil {
+		if err == storm.ErrNotFound {
+			log.Printf("Returning no classes without error\n")
+			return []Class{}, nil
+
+		}
 		log.Printf("Failed to select classes - %s\n", err)
 		return nil, err
 	}
 
 	log.Printf("Returning %d classes\n", len(classes))
-	// for _, v := range classes {
-	// 	fmt.Println("~~~~~")
-	// 	fmt.Println(v.StartDateTime)
-	// 	fmt.Println(v.ClassName)
-	// 	fmt.Println(v.Club)
-	// 	fmt.Println("~~~~~")
-	// }
 	return classes, nil
 }
 
