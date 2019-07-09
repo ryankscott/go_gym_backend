@@ -25,6 +25,9 @@ GET http://localhost:3000/classes?hour=09
 #  Get ClassTypes
 GET http://localhost:3000/classtypes
 
+# Healthcheck
+GET http://localhost:3000/healthcheck
+
 #
 # POST Analytics event
 POST https://localhost:3000/analytics
