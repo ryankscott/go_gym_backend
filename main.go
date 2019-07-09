@@ -258,7 +258,7 @@ func AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	// Check if the UI is up
-	_, err := http.Get("http://localhost:8089")
+	_, err := http.Get("http://localhost:3000/")
 	if err != nil {
 		fmt.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -511,6 +511,9 @@ func main() {
 	r.HandleFunc("/classtypes", ClassTypesHandler).Methods("GET")
 	r.HandleFunc("/analytics", AnalyticsHandler).Methods("POST")
 	r.HandleFunc("/healthcheck", HealthCheckHandler).Methods("GET")
+
+	fs := http.FileServer(http.Dir("./build"))
+	r.PathPrefix("/").Handler(http.StripPrefix("/", fs))
 
 	// Bind to a port and pass our router in
 	srv := &http.Server{
