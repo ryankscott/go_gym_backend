@@ -258,9 +258,25 @@ func AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	// Check if the UI is up
-	// Check if the DB is responding
-	//
-	w.Write([]byte("Gorilla!\n"))
+	_, err := http.Get("http://localhost:8089")
+	if err != nil {
+		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Failed to get UI"))
+		return
+	}
+
+	// Check if the DB has data
+	var c []Class
+	err = db.All(&c)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Failed to get classes"))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	return
 }
 
 func getClasses() ([]Class, []ClassType, error) {
@@ -494,7 +510,7 @@ func main() {
 	r.HandleFunc("/classes", ClassesHandler).Methods("GET")
 	r.HandleFunc("/classtypes", ClassTypesHandler).Methods("GET")
 	r.HandleFunc("/analytics", AnalyticsHandler).Methods("POST")
-	r.HandleFunc("/health", HealthCheckHandler).Methods("GET")
+	r.HandleFunc("/healthcheck", HealthCheckHandler).Methods("GET")
 
 	// Bind to a port and pass our router in
 	srv := &http.Server{
