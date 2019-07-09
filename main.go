@@ -13,6 +13,7 @@ import (
 	"github.com/asdine/storm"
 	"github.com/asdine/storm/q"
 	"github.com/google/uuid"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/tidwall/gjson"
 )
@@ -493,7 +494,7 @@ func main() {
 
 	// Bind to a port and pass our router in
 	srv := &http.Server{
-		Handler:      r,
+		Handler:      handlers.CORS()(r),
 		Addr:         "127.0.0.1:3000",
 		WriteTimeout: 5 * time.Second,
 		ReadTimeout:  5 * time.Second,
