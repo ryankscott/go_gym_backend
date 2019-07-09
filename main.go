@@ -383,6 +383,10 @@ func queryClasses(db *storm.DB, query Query) ([]Class, error) {
 		startOfDay := time.Date(v.Year(), v.Month(), v.Day(), 0, 0, 0, 0, location)
 		dateQueries = append(dateQueries, q.And(q.Gt("StartDateTime", startOfDay), q.Lt("StartDateTime", endOfDay)))
 	}
+	// Only return last queries after now
+	if len(dateQueries) == 0 {
+		dateQueries = append(dateQueries, q.Gt("StartDateTime", time.Now()))
+	}
 
 	// Extract the hours
 	var hourQueries []q.Matcher
