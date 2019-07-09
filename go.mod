@@ -6,6 +6,7 @@ require (
 	github.com/asdine/storm v2.1.2+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/google/uuid v1.1.1
+	github.com/gorilla/handlers v1.4.0
 	github.com/gorilla/mux v1.7.2
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/stretchr/testify v1.3.0 // indirect
