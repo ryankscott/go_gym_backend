@@ -1,14 +1,15 @@
-FROM golang:latest 
-RUN mkdir /app 
-ADD . /app/ 
-WORKDIR /app 
-RUN go build -o main . 
+FROM alpine:latest
 
-# Bundle app source
+ADD gym_backend /gym_backend
+
 COPY . .
 COPY build/ /build/
 
-ENV TZ="Pacific/Auckland"
-EXPOSE 3000 
+RUN apk add --update ca-certificates
+RUN apk update && apk add tzdata
 
-CMD ["/app/main"]
+ENV TZ="Pacific/Auckland"
+EXPOSE 9000 
+
+
+CMD ["/gym_backend"]
