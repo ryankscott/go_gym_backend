@@ -2,13 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/asdine/storm"
 	"github.com/asdine/storm/q"
@@ -26,13 +27,40 @@ var allClubs = map[string]Club{
 }
 var db *storm.DB
 
+func init() {
+	// Logging
+	customFormatter := new(log.TextFormatter)
+	customFormatter.TimestampFormat = time.RFC3339Nano
+	customFormatter.FullTimestamp = true
+	log.SetFormatter(customFormatter)
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.TraceLevel)
+
+	// AnalyticsDB
+	// var err error
+	// analyticsDB, err = sql.Open("sqlite3", "./analytics.db")
+	// if err != nil {
+	// 	log.Fatalf("Failed to open analytics db - %s\n", err)
+	// }
+	// defer analyticsDB.Close()
+	// sqlStmt := `
+	// CREATE TABLE event (id integer not null primary key, user text, session text, data text, action text, created_at datetime);
+	// `
+	// _, err = analyticsDB.Exec(sqlStmt)
+	// if err != nil {
+	// 	log.Fatalf("Failed to open analytics db - %s\n", err)
+	// 	return
+	// }
+
+}
+
 type AnalyticsEvent struct {
-	ID        string
-	User      string      `json:"user"`
-	Session   string      `json:"session"`
-	Data      interface{} `json:"data"`
-	Action    string      `json:"action"`
-	CreatedAt time.Time   `json:"-"`
+	ID        string      `sql:"id"`
+	User      string      `json:"user" sql:"user"`
+	Session   string      `json:"session" sql:"session"`
+	Data      interface{} `json:"data" sql:"data"`
+	Action    string      `json:"action" sql:"action"`
+	CreatedAt time.Time   `json:"-" sql:"created_at"`
 }
 
 type Club struct {
@@ -120,7 +148,6 @@ type ClassType struct {
 }
 
 func ClassesHandler(w http.ResponseWriter, r *http.Request) {
-
 	/* name="BodyPump, RPM"&club="Auckland City"&date="2018-07-18,2018-07-19"&hour=11 */
 	// Get query parameters
 	params := r.URL.Query()
@@ -144,7 +171,7 @@ func ClassesHandler(w http.ResponseWriter, r *http.Request) {
 		for _, v := range ds {
 			t, err := time.Parse("2006-01-02", v)
 			if err != nil {
-				fmt.Printf("Failed to parse date string - %s \n", err)
+				log.Errorf("Failed to parse date string - %s \n", err)
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("Failed to parse date parameter"))
 				return
@@ -175,7 +202,7 @@ func ClassesHandler(w http.ResponseWriter, r *http.Request) {
 		for _, v := range hs {
 			hrs, err := strconv.Atoi(v)
 			if err != nil {
-				fmt.Printf("Failed to parse hours string - %s \n", err)
+				log.Errorf("Failed to parse hours string - %s \n", err)
 				// TODO return 400
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("Failed to parse hours parameter"))
@@ -188,19 +215,21 @@ func ClassesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	classes, err := queryClasses(db, q)
 	if err != nil {
-		fmt.Printf("Failed to query classes - %s \n", err)
+		log.Errorf("Failed to query classes - %s \n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Failed to return classes"))
 		return
 	}
 
+	t1 := time.Now()
 	jClasses, err := json.Marshal(classes)
 	if err != nil {
-		fmt.Printf("Failed to marshal classes to JSON - %s \n", err)
+		log.Errorf("Failed to marshal classes to JSON - %s \n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Failed to return classes"))
 		return
 	}
+	log.Tracef("Finished marshalling classes in %s", time.Now().Sub(t1))
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(jClasses))
@@ -211,14 +240,14 @@ func ClassTypesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	classTypes, err := queryClassTypes(db)
 	if err != nil {
-		fmt.Printf("Failed to get classTypes - %s \n", err)
+		log.Errorf("Failed to get classTypes - %s \n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Failed to return classTypes"))
 		return
 	}
 	jClassTypes, err := json.Marshal(classTypes)
 	if err != nil {
-		fmt.Printf("Failed to marshal classTypes to JSON - %s \n", err)
+		log.Errorf("Failed to marshal classTypes to JSON - %s \n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Failed to return classTypes"))
 		return
@@ -230,12 +259,12 @@ func ClassTypesHandler(w http.ResponseWriter, r *http.Request) {
 func AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Fatal("Error reading body. ", err)
+		log.Errorf("Error reading body - %s \n", err)
 	}
 	var event AnalyticsEvent
 	err = json.Unmarshal(body, &event)
 	if err != nil {
-		fmt.Printf("Failed to unmarshal JSON to analytics event - %s \n", err)
+		log.Errorf("Failed to unmarshal JSON to analytics event - %s \n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Failed to save analytics event"))
 		return
@@ -247,10 +276,10 @@ func AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 	// Save it
 	err = db.Save(&event)
 	if err != nil {
-		fmt.Printf("Failed to save analytics event - %s \n", err)
+		log.Errorf("Failed to save analytics event - %s \n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Failed to save analytics event"))
-		log.Printf("Failed to save analytics event - %s\n", err)
+		log.Infof("Failed to save analytics event - %s\n", err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -260,7 +289,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	// Check if the UI is up
 	_, err := http.Get("http://localhost:3000/")
 	if err != nil {
-		fmt.Println(err)
+		log.Errorf("Failed to check if UI is up from healtcheck")
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Failed to get UI"))
 		return
@@ -270,6 +299,7 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	var c []Class
 	err = db.All(&c)
 	if err != nil {
+		log.Errorf("Failed to return classes from healthcheck")
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Failed to get classes"))
 		return
@@ -281,21 +311,21 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 
 func getClasses() ([]Class, []ClassType, error) {
 
-	log.Printf("Fetching classes\n")
+	log.Infof("Fetching classes\n")
 	resp, err := http.Post("https://www.lesmills.co.nz/api/timetable/get-timetable-epi", "application/x-www-form-urlencoded", strings.NewReader("Club=01,09,13,06"))
 
 	if err != nil {
-		log.Printf("Failed to retrieve classes from Les Mills - %s \n", err)
+		log.Errorf("Failed to retrieve classes from Les Mills - %s \n", err)
 		return nil, nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("Returned a non-OK response code (%d) from Les Mills\n", resp.StatusCode)
+		log.Errorf("Returned a non-OK response code (%d) from Les Mills\n", resp.StatusCode)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("Failed to read response body from Les Mills - %s \n", err)
+		log.Errorf("Failed to read response body from Les Mills - %s \n", err)
 	}
 	jsonResponse := (string(body))
 	cs := gjson.Get(jsonResponse, "Classes")
@@ -305,52 +335,51 @@ func getClasses() ([]Class, []ClassType, error) {
 	var classes []Class
 	err = json.Unmarshal([]byte(cs.String()), &classes)
 	if err != nil {
-		log.Printf("Failed to unmarshal classes %s\n", err)
+		log.Errorf("Failed to unmarshal classes %s\n", err)
 		return nil, nil, err
 	}
-	log.Printf("Fetched %d classes\n", len(classes))
+	log.Infof("Fetched %d classes\n", len(classes))
 
 	// Get ClassTypes
 	var classTypes []ClassType
 	err = json.Unmarshal([]byte(cts.String()), &classTypes)
 	if err != nil {
-		log.Printf("Failed to unmarshal classtypes %s\n", err)
+		log.Errorf("Failed to unmarshal classtypes %s\n", err)
 		return nil, nil, err
 	}
-	log.Printf("Fetched %d class types\n", len(classTypes))
+	log.Infof("Fetched %d class types\n", len(classTypes))
 	return classes, classTypes, nil
 }
 
 func saveClasses(db *storm.DB, classes []Class) error {
-	log.Printf("Saving %d classes\n", len(classes))
+	log.Infof("Saving %d classes\n", len(classes))
 	t1 := time.Now()
-
 	for _, c := range classes {
 		err := db.Save(&c)
 		if err != nil {
-			log.Printf("Failed to save classes - %s\n", err)
+			log.Errorf("Failed to save classes - %s\n", err)
 			return err
 		}
 	}
 	t2 := time.Now()
 	diff := t2.Sub(t1)
-	log.Printf("Classes saved in %s\n", diff)
+	log.Infof("Classes saved in %s\n", diff)
 	return nil
 }
 
 func saveClassTypes(db *storm.DB, classTypes []ClassType) error {
-	log.Printf("Saving %d classtypes\n", len(classTypes))
+	log.Infof("Saving %d classtypes\n", len(classTypes))
 	t1 := time.Now()
 	for _, c := range classTypes {
 		err := db.Save(&c)
 		if err != nil {
-			log.Printf("Failed to save class types - %s\n", err)
+			log.Errorf("Failed to save class types - %s\n", err)
 			return err
 		}
 	}
 	t2 := time.Now()
 	diff := t2.Sub(t1)
-	log.Printf("Classtypes saved in %s\n", diff)
+	log.Infof("Classtypes saved in %s\n", diff)
 	return nil
 
 }
@@ -374,24 +403,24 @@ func queryClasses(db *storm.DB, query Query) ([]Class, error) {
 	var classes []Class
 	// Extract the names
 	var nameQueries []q.Matcher
-	log.Printf("Querying for classes using %s as name parameters\n", query.name)
+	log.Infof("Querying for classes using %s as name parameters\n", query.name)
 	for _, v := range query.name {
 		nameQueries = append(nameQueries, q.Eq("ClassCode", v))
 	}
 
 	// Extract the clubs
 	var clubQueries []q.Matcher
-	log.Printf("Querying for classes using %s as club parameters\n", query.club)
+	log.Infof("Querying for classes using %s as club parameters\n", query.club)
 	for _, v := range query.club {
 		clubQueries = append(clubQueries, q.Eq("Club", v))
 	}
 
 	// Extract the dates
 	var dateQueries []q.Matcher
-	log.Printf("Querying for classes using %s as date parameters\n", query.date)
+	log.Infof("Querying for classes using %s as date parameters\n", query.date)
 	location, err := time.LoadLocation("Pacific/Auckland")
 	if err != nil {
-		log.Printf("Failed to load location - %s\n", err)
+		log.Errorf("Failed to load location - %s\n", err)
 		return nil, err
 	}
 	for _, v := range query.date {
@@ -406,7 +435,7 @@ func queryClasses(db *storm.DB, query Query) ([]Class, error) {
 
 	// Extract the hours
 	var hourQueries []q.Matcher
-	log.Printf("Querying for hours using %d as hour parameters\n", query.hour)
+	log.Infof("Querying for hours using %d as hour parameters\n", query.hour)
 	for _, v := range query.hour {
 		hourQueries = append(hourQueries, q.Eq("StartHour", v))
 	}
@@ -414,8 +443,10 @@ func queryClasses(db *storm.DB, query Query) ([]Class, error) {
 	// Combine the matchers
 	matcher := createMatcher(nameQueries, clubQueries, dateQueries, hourQueries)
 	// If we don't have query parameters
+
+	t1 := time.Now()
 	if matcher == nil {
-		log.Printf("We have no matchers so returning all classes\n")
+		log.Errorf("We have no matchers so returning all classes\n")
 		err = db.All(&classes)
 
 	} else {
@@ -423,15 +454,16 @@ func queryClasses(db *storm.DB, query Query) ([]Class, error) {
 	}
 	if err != nil {
 		if err == storm.ErrNotFound {
-			log.Printf("Returning no classes without error\n")
+			log.Errorf("Returning no classes without error\n")
 			return []Class{}, nil
 
 		}
-		log.Printf("Failed to select classes - %s\n", err)
+		log.Errorf("Failed to select classes - %s\n", err)
 		return nil, err
 	}
+	log.Tracef("Finished getting classes from DB in %s \n", time.Now().Sub(t1))
 
-	log.Printf("Returning %d classes\n", len(classes))
+	log.Infof("Returning %d classes\n", len(classes))
 	return classes, nil
 }
 
@@ -446,6 +478,7 @@ func queryClassTypes(db *storm.DB) ([]ClassType, error) {
 }
 
 func main() {
+
 	// Create the DB
 	var err error
 	db, err = storm.Open("classes.db")
@@ -455,31 +488,29 @@ func main() {
 
 	// Drop all old data
 	err = db.Drop("Class")
-	log.Printf("Dropping all old class data")
+	log.Infof("Dropping all old class data")
 	if err != nil {
-		log.Printf("Failed to drop class data - %s \n", err)
+		log.Errorf("Failed to drop class data - %s \n", err)
 	}
 	err = db.Drop("ClassType")
-	log.Printf("Dropping all old classtypes data")
+	log.Infof("Dropping all old classtypes data")
 	if err != nil {
-		log.Printf("Failed to drop classtypes data - %s \n", err)
+		log.Infof("Failed to drop classtypes data - %s \n", err)
 	}
 
 	classes, classTypes, err := getClasses()
 	if err != nil {
-		log.Fatalf("Failed to get classes and classTypes with error - %s\n", err)
+		log.Errorf("Failed to get classes and classTypes with error - %s\n", err)
 	}
 
 	err = saveClasses(db, classes)
 	if err != nil {
-		log.Fatalf("Failed to save classes with error - %s\n", err)
-
+		log.Errorf("Failed to save classes with error - %s\n", err)
 	}
 
 	err = saveClassTypes(db, classTypes)
 	if err != nil {
-		log.Fatalf("Failed to save class types with error - %s\n", err)
-
+		log.Errorf("Failed to save class types with error - %s\n", err)
 	}
 
 	// Periodically get new classes
@@ -490,13 +521,13 @@ func main() {
 			case <-ticker.C:
 				err = saveClasses(db, classes)
 				if err != nil {
-					log.Fatalf("Failed to save classes with error - %s\n", err)
+					log.Errorf("Failed to save classes with error - %s\n", err)
 
 				}
 
 				err = saveClassTypes(db, classTypes)
 				if err != nil {
-					log.Fatalf("Failed to save class types with error - %s\n", err)
+					log.Errorf("Failed to save class types with error - %s\n", err)
 
 				}
 			}
@@ -507,10 +538,10 @@ func main() {
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/classes", ClassesHandler).Methods("GET")
-	r.HandleFunc("/classtypes", ClassTypesHandler).Methods("GET")
-	r.HandleFunc("/analytics", AnalyticsHandler).Methods("POST")
-	r.HandleFunc("/healthcheck", HealthCheckHandler).Methods("GET")
+	r.HandleFunc("/classes/", ClassesHandler).Methods("GET")
+	r.HandleFunc("/classtypes/", ClassTypesHandler).Methods("GET")
+	r.HandleFunc("/analytics/", AnalyticsHandler).Methods("POST")
+	r.HandleFunc("/healthcheck/", HealthCheckHandler).Methods("GET")
 
 	fs := http.FileServer(http.Dir("./build"))
 	r.PathPrefix("/").Handler(http.StripPrefix("/", fs))
@@ -518,7 +549,7 @@ func main() {
 	// Bind to a port and pass our router in
 	srv := &http.Server{
 		Handler:      handlers.CORS()(r),
-		Addr:         "127.0.0.1:3000",
+		Addr:         ":9000",
 		WriteTimeout: 5 * time.Second,
 		ReadTimeout:  5 * time.Second,
 	}
