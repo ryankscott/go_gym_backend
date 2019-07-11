@@ -2,35 +2,34 @@
 
 #
 # Get all classes
-GET http://localhost:3000/classes
+GET http://localhost:9000/classes/
 #
 # Restrict it to a single club
-GET http://localhost:3000/classes?club=09
+GET http://localhost:9000/classes/?club=09
 #
 # Restrict it to a single class
-GET http://localhost:3000/classes?name=62
+GET http://localhost:9000/classes/?name=62
 #
 # Combine it 
-GET http://localhost:3000/classes?name=62&club=09
+GET http://localhost:9000/classes/?name=62&club=09
 #
 # Get by date
-GET http://localhost:3000/classes?date=2019-07-02
+GET http://localhost:9000/classes/?date=2019-07-02
 #
 # Get by hour
-GET http://localhost:3000/classes?hour=09&date=2019-07-02
+GET http://localhost:9000/classes/?hour=09&date=2019-07-12
 #
 # Get by hour
-GET http://localhost:3000/classes?hour=09
+GET http://localhost:9000/classes/?hour=09
 #
 #  Get ClassTypes
-GET http://localhost:3000/classtypes
+GET http://localhost:9000/classtypes/
 
 # Healthcheck
-GET http://localhost:3000/healthcheck
-
+GET http://localhost:9000/healthcheck/
 #
 # POST Analytics event
-POST https://localhost:3000/analytics
+POST https://localhost:9000/analytics/
 Content-Type: application/json
     {
       "user": "105d011a-d1a1-4583-835c-7c8b87a74802", 
