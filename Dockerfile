@@ -11,5 +11,4 @@ RUN apk update && apk add tzdata
 ENV TZ="Pacific/Auckland"
 EXPOSE 9000 
 
-
 CMD ["/gym_backend"]

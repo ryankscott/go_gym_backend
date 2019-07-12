@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -16,6 +17,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
+	"github.com/jmoiron/sqlx/types"
+	_ "github.com/lib/pq"
 	"github.com/tidwall/gjson"
 )
 
@@ -26,6 +30,7 @@ var allClubs = map[string]Club{
 	"06": Club{"06", "Takapuna"},
 }
 var db *storm.DB
+var analyticsDB *sqlx.DB
 
 func init() {
 	// Logging
@@ -37,30 +42,35 @@ func init() {
 	log.SetLevel(log.TraceLevel)
 
 	// AnalyticsDB
-	// var err error
-	// analyticsDB, err = sql.Open("sqlite3", "./analytics.db")
-	// if err != nil {
-	// 	log.Fatalf("Failed to open analytics db - %s\n", err)
-	// }
-	// defer analyticsDB.Close()
-	// sqlStmt := `
-	// CREATE TABLE event (id integer not null primary key, user text, session text, data text, action text, created_at datetime);
-	// `
-	// _, err = analyticsDB.Exec(sqlStmt)
-	// if err != nil {
-	// 	log.Fatalf("Failed to open analytics db - %s\n", err)
-	// 	return
-	// }
+	var err error
+	passwd := os.Getenv("POSTGRES_PASSWORD")
+	if passwd == "" {
+		log.Fatalf("Failed to get postgres password")
+	}
+	connStr := fmt.Sprintf("user=postgres dbname=analytics sslmode=disable password=%s", passwd)
+	analyticsDB, err = sqlx.Connect("postgres", connStr)
+	if err != nil {
+		log.Fatalf("Failed to open analytics db - %s\n", err)
+	}
+
+	sqlStmt := `
+	CREATE TABLE IF NOT EXISTS event (id VARCHAR(40) PRIMARY KEY, user_id VARCHAR(40), session_id VARCHAR(40), data jsonb, action VARCHAR(40), created_at TIMESTAMP);
+	`
+	_, err = analyticsDB.Exec(sqlStmt)
+	if err != nil {
+		log.Fatalf("Failed to open analytics db - %s\n", err)
+		return
+	}
 
 }
 
 type AnalyticsEvent struct {
-	ID        string      `sql:"id"`
-	User      string      `json:"user" sql:"user"`
-	Session   string      `json:"session" sql:"session"`
-	Data      interface{} `json:"data" sql:"data"`
-	Action    string      `json:"action" sql:"action"`
-	CreatedAt time.Time   `json:"-" sql:"created_at"`
+	ID        string         `sql:"id"`
+	User      string         `json:"user" sql:"user_id"`
+	Session   string         `json:"session" sql:"session_id"`
+	Data      types.JSONText `json:"data" sql:"data"`
+	Action    string         `json:"action" sql:"action"`
+	CreatedAt time.Time      `json:"-" sql:"created_at"`
 }
 
 type Club struct {
@@ -274,7 +284,7 @@ func AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 	event.CreatedAt = time.Now()
 
 	// Save it
-	err = db.Save(&event)
+	_, err = analyticsDB.NamedExec(`INSERT INTO event VALUES (:id, :user, :session, :data, :action, :createdat)`, event)
 	if err != nil {
 		log.Errorf("Failed to save analytics event - %s \n", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -286,18 +296,9 @@ func AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	// Check if the UI is up
-	_, err := http.Get("http://localhost:9000/")
-	if err != nil {
-		log.Errorf("Failed to check if UI is up from healtcheck")
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Failed to get UI"))
-		return
-	}
-
 	// Check if the DB has data
 	var c []Class
-	err = db.All(&c)
+	err := db.All(&c)
 	if err != nil {
 		log.Errorf("Failed to return classes from healthcheck")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -454,7 +455,7 @@ func queryClasses(db *storm.DB, query Query) ([]Class, error) {
 	}
 	if err != nil {
 		if err == storm.ErrNotFound {
-			log.Errorf("Returning no classes without error\n")
+			log.Info("Returning no classes without error\n")
 			return []Class{}, nil
 
 		}
@@ -482,6 +483,8 @@ func main() {
 	// Create the DB
 	var err error
 	db, err = storm.Open("classes.db")
+
+	defer analyticsDB.Close()
 	if err != nil {
 		log.Fatalf("Failed to open database with error  - %s \n", err)
 	}
