@@ -287,7 +287,7 @@ func AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	// Check if the UI is up
-	_, err := http.Get("http://localhost:3000/")
+	_, err := http.Get("http://localhost:9000/")
 	if err != nil {
 		log.Errorf("Failed to check if UI is up from healtcheck")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -546,7 +546,7 @@ func main() {
 	fs := http.FileServer(http.Dir("./build"))
 	r.PathPrefix("/").Handler(http.StripPrefix("/", fs))
 
-	// Bind to a port and pass our router in
+	// Add CORS and compression handlers
 	h := handlers.CompressHandler(handlers.CORS()(r))
 
 	srv := &http.Server{
