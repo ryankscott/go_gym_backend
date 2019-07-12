@@ -547,8 +547,10 @@ func main() {
 	r.PathPrefix("/").Handler(http.StripPrefix("/", fs))
 
 	// Bind to a port and pass our router in
+	h := handlers.CompressHandler(handlers.CORS()(r))
+
 	srv := &http.Server{
-		Handler:      handlers.CORS()(r),
+		Handler:      h,
 		Addr:         ":9000",
 		WriteTimeout: 5 * time.Second,
 		ReadTimeout:  5 * time.Second,
