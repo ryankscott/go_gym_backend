@@ -43,16 +43,26 @@ func init() {
 
 	// AnalyticsDB
 	var err error
-	passwd := os.Getenv("POSTGRES_PASSWORD")
-	if passwd == "" {
-		log.Fatalf("Failed to get postgres password")
-	}
-	connStr := fmt.Sprintf("user=postgres dbname=analytics sslmode=disable password=%s", passwd)
-	analyticsDB, err = sqlx.Connect("postgres", connStr)
-	if err != nil {
-		log.Fatalf("Failed to open analytics db - %s\n", err)
-	}
+	dev := os.Getenv("GYM_BACKEND_DEV_MODE")
 
+	// If in dev use SQlite
+	if dev == "true" {
+		connStr := fmt.Sprint("sqlite3", "analytics.db")
+		analyticsDB, err = sqlx.Connect("postgres", connStr)
+		if err != nil {
+			log.Fatalf("Failed to open analytics db - %s\n", err)
+		}
+	} else {
+		passwd := os.Getenv("POSTGRES_PASSWORD")
+		if passwd == "" {
+			log.Fatalf("Failed to get postgres password")
+		}
+		connStr := fmt.Sprintf("user=postgres dbname=analytics sslmode=disable password=%s", passwd)
+		analyticsDB, err = sqlx.Connect("postgres", connStr)
+		if err != nil {
+			log.Fatalf("Failed to open analytics db - %s\n", err)
+		}
+	}
 	sqlStmt := `
 	CREATE TABLE IF NOT EXISTS event (id VARCHAR(40) PRIMARY KEY, user_id VARCHAR(40), session_id VARCHAR(40), data jsonb, action VARCHAR(40), created_at TIMESTAMP);
 	`
