@@ -335,7 +335,7 @@ func AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 	event.CreatedAt = time.Now()
 
 	// Save it
-	_, err = analyticsDB.NamedExec(`INSERT INTO event VALUES (:id, :user, :session, :data, :action, :createdat)`, event)
+	_, err = analyticsDB.NamedExec(`INSERT INTO events VALUES (:id, :user, :session, :data, :action, :createdat)`, event)
 	if err != nil {
 		log.Errorf("Failed to save analytics event - %s \n", err)
 		w.WriteHeader(http.StatusInternalServerError)
