@@ -530,9 +530,9 @@ func queryClasses(db *sqlx.DB, query Query) ([]Class, error) {
 
 	}
 
-	if query.IsVirtual {
-		s = s.Where(sq.Eq{"is_virtual_class": query.IsVirtual})
-
+	// If it's false, we should hide virtual classes
+	if query.IsVirtual == false {
+		s = s.Where(sq.Eq{"is_virtual_class": false})
 	}
 
 	// Order by next class and classes after now
