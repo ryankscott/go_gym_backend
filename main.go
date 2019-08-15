@@ -618,6 +618,12 @@ func main() {
 					log.Errorf("Failed to delete classes with error - %s\n", err)
 
 				}
+
+				classes, classTypes, err := getClasses()
+				if err != nil {
+					log.Errorf("Failed to get classes and classTypes with error - %s\n", err)
+				}
+
 				err = saveClasses(classesDB, classes)
 				if err != nil {
 					log.Errorf("Failed to save classes with error - %s\n", err)
