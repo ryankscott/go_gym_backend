@@ -613,6 +613,7 @@ func main() {
 		for {
 			select {
 			case <-ticker.C:
+				log.Info("Refreshing classes")
 				err = deleteClasses(classesDB)
 				if err != nil {
 					log.Errorf("Failed to delete classes with error - %s\n", err)
