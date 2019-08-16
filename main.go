@@ -348,16 +348,16 @@ func AnalyticsHandler(w http.ResponseWriter, r *http.Request) {
 
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	// Check if the DB has data
-	var c []Class
-	err := classesDB.Select(&c, "SELECT * FROM classes;")
+	var c int
+	err := classesDB.Get(&c, "SELECT COUNT(*) FROM classes;")
 	if err != nil {
-		log.Errorf("Failed to return classes from healthcheck")
+		log.Errorf("Failed to return classes from healthcheck - %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Failed to get classes"))
 		return
 	}
-	if len(c) == 0 {
-		log.Errorf("Failed to return classes from healthcheck")
+	if c == 0 {
+		log.Errorf("No classes returned from healthcheck")
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Failed to get classes"))
 		return
